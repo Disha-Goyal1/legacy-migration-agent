@@ -1,0 +1,20 @@
+{
+  "sourceFile": "fixtures/legacy/invalid.js",
+  "outputFile": "fixtures/migrated/invalid.ts",
+  "transformations": [],
+  "warnings": [],
+  "errors": [
+    "TypeScript error TS2391 on line 1: Function implementation is missing or not immediately following the declaration.",
+    "TypeScript error TS7010 on line 1: 'invalid', which lacks return-type annotation, implicitly has an 'any' return type.",
+    "TypeScript error TS2300 on line 2: Duplicate identifier '(Missing)'.",
+    "TypeScript error TS2842 on line 2: '(Missing)' is an unused renaming of 'return'. Did you intend to use it as a type annotation?",
+    "TypeScript error TS7031 on line 2: Binding element '(Missing)' implicitly has an 'any' type.",
+    "TypeScript error TS1005 on line 2: ':' expected.",
+    "TypeScript error TS2300 on line 2: Duplicate identifier '(Missing)'.",
+    "TypeScript error TS2842 on line 2: '(Missing)' is an unused renaming of '\"not valid JavaScript\"'. Did you intend to use it as a type annotation?",
+    "TypeScript error TS7031 on line 2: Binding element '(Missing)' implicitly has an 'any' type.",
+    "TypeScript error TS1005 on line 2: ':' expected.",
+    "TypeScript error TS1005 on line 4: ')' expected."
+  ],
+  "status": "failed"
+}

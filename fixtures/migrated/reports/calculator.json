@@ -1,0 +1,21 @@
+{
+  "sourceFile": "fixtures/legacy/calculator.js",
+  "outputFile": "fixtures/migrated/calculator.ts",
+  "transformations": [
+    "Added an explicit any type to uncertain parameter \"a\".",
+    "Added an explicit any type to uncertain parameter \"b\".",
+    "Added an explicit any type to uncertain parameter \"name\".",
+    "Inferred the string return type of function \"greet\" from its implementation.",
+    "Converted a top-level module.exports object to named exports: add, greet."
+  ],
+  "warnings": [
+    "Parameter \"a\" has no reliable type evidence and needs human review.",
+    "Parameter \"b\" has no reliable type evidence and needs human review.",
+    "Parameter \"name\" has no reliable type evidence and needs human review.",
+    "Function \"add\" has an uncertain any return type.",
+    "Converting CommonJS to ES module exports may change module interoperability at runtime.",
+    "The \"+\" expression \"a + b\" may mean numeric addition or string concatenation."
+  ],
+  "errors": [],
+  "status": "review_required"
+}

@@ -1,0 +1,12 @@
+{
+  "sourceFile": "fixtures/legacy/data.js",
+  "outputFile": "fixtures/migrated/data.ts",
+  "transformations": [
+    "Converted a top-level module.exports object to named exports: profile, scores, summarize."
+  ],
+  "warnings": [
+    "Converting CommonJS to ES module exports may change module interoperability at runtime."
+  ],
+  "errors": [],
+  "status": "review_required"
+}

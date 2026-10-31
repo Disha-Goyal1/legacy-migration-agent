@@ -1,0 +1,31 @@
+node_modules/
+dist/
+build/
+coverage/
+
+# Environment files; keep the placeholder template shareable.
+.env
+.env.*
+!.env.example
+
+# AWS credentials and private keys.
+.aws/
+**/.aws/
+credentials
+credentials.*
+aws-credentials*
+secrets.json
+*.pem
+*.key
+*.ppk
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+
+# Logs.
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*

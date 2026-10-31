@@ -1,0 +1,18 @@
+{
+  "sourceFile": "fixtures/legacy/ambiguous.js",
+  "outputFile": "fixtures/migrated/ambiguous.ts",
+  "transformations": [
+    "Added an explicit any type to uncertain parameter \"left\".",
+    "Added an explicit any type to uncertain parameter \"right\".",
+    "Converted a top-level module.exports object to named exports: combine."
+  ],
+  "warnings": [
+    "Parameter \"left\" has no reliable type evidence and needs human review.",
+    "Parameter \"right\" has no reliable type evidence and needs human review.",
+    "Function \"combine\" has an uncertain any return type.",
+    "Converting CommonJS to ES module exports may change module interoperability at runtime.",
+    "The \"+\" expression \"left + right\" may mean numeric addition or string concatenation."
+  ],
+  "errors": [],
+  "status": "review_required"
+}

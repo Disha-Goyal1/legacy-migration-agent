@@ -1,0 +1,75 @@
+{
+  "fixtures": [
+    {
+      "sourceFile": "fixtures/legacy/ambiguous.js",
+      "outputFile": "fixtures/migrated/ambiguous.ts",
+      "transformations": [
+        "Added an explicit any type to uncertain parameter \"left\".",
+        "Added an explicit any type to uncertain parameter \"right\".",
+        "Converted a top-level module.exports object to named exports: combine."
+      ],
+      "warnings": [
+        "Parameter \"left\" has no reliable type evidence and needs human review.",
+        "Parameter \"right\" has no reliable type evidence and needs human review.",
+        "Function \"combine\" has an uncertain any return type.",
+        "Converting CommonJS to ES module exports may change module interoperability at runtime.",
+        "The \"+\" expression \"left + right\" may mean numeric addition or string concatenation."
+      ],
+      "errors": [],
+      "status": "review_required"
+    },
+    {
+      "sourceFile": "fixtures/legacy/calculator.js",
+      "outputFile": "fixtures/migrated/calculator.ts",
+      "transformations": [
+        "Added an explicit any type to uncertain parameter \"a\".",
+        "Added an explicit any type to uncertain parameter \"b\".",
+        "Added an explicit any type to uncertain parameter \"name\".",
+        "Inferred the string return type of function \"greet\" from its implementation.",
+        "Converted a top-level module.exports object to named exports: add, greet."
+      ],
+      "warnings": [
+        "Parameter \"a\" has no reliable type evidence and needs human review.",
+        "Parameter \"b\" has no reliable type evidence and needs human review.",
+        "Parameter \"name\" has no reliable type evidence and needs human review.",
+        "Function \"add\" has an uncertain any return type.",
+        "Converting CommonJS to ES module exports may change module interoperability at runtime.",
+        "The \"+\" expression \"a + b\" may mean numeric addition or string concatenation."
+      ],
+      "errors": [],
+      "status": "review_required"
+    },
+    {
+      "sourceFile": "fixtures/legacy/data.js",
+      "outputFile": "fixtures/migrated/data.ts",
+      "transformations": [
+        "Converted a top-level module.exports object to named exports: profile, scores, summarize."
+      ],
+      "warnings": [
+        "Converting CommonJS to ES module exports may change module interoperability at runtime."
+      ],
+      "errors": [],
+      "status": "review_required"
+    },
+    {
+      "sourceFile": "fixtures/legacy/invalid.js",
+      "outputFile": "fixtures/migrated/invalid.ts",
+      "transformations": [],
+      "warnings": [],
+      "errors": [
+        "TypeScript error TS2391 on line 1: Function implementation is missing or not immediately following the declaration.",
+        "TypeScript error TS7010 on line 1: 'invalid', which lacks return-type annotation, implicitly has an 'any' return type.",
+        "TypeScript error TS2300 on line 2: Duplicate identifier '(Missing)'.",
+        "TypeScript error TS2842 on line 2: '(Missing)' is an unused renaming of 'return'. Did you intend to use it as a type annotation?",
+        "TypeScript error TS7031 on line 2: Binding element '(Missing)' implicitly has an 'any' type.",
+        "TypeScript error TS1005 on line 2: ':' expected.",
+        "TypeScript error TS2300 on line 2: Duplicate identifier '(Missing)'.",
+        "TypeScript error TS2842 on line 2: '(Missing)' is an unused renaming of '\"not valid JavaScript\"'. Did you intend to use it as a type annotation?",
+        "TypeScript error TS7031 on line 2: Binding element '(Missing)' implicitly has an 'any' type.",
+        "TypeScript error TS1005 on line 2: ':' expected.",
+        "TypeScript error TS1005 on line 4: ')' expected."
+      ],
+      "status": "failed"
+    }
+  ]
+}
