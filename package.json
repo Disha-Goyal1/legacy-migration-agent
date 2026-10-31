@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "tsx src/migrate-cli.ts && tsc --noEmit && tsx --test src/migrate.test.ts",
+    "test": "tsc --noEmit && tsx --test src/migrate.test.ts && tsx src/migrate-cli.ts",
+    "quality:gate": "tsx src/ci-quality-gate.ts",
     "backend": "tsx src/server-main.ts",
     "dashboard": "vite --host 127.0.0.1",
     "build:dashboard": "tsc -p tsconfig.app.json && vite build",

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import fs from "node:fs/promises";
 import os from "node:os";
 import type { AddressInfo } from "node:net";
@@ -88,6 +89,34 @@ test("migrates functions and executes their TypeScript output", async () => {
     const calculator = await import(pathToFileURL(outputFile).href);
     assert.equal(calculator.add(2, 3), 5);
     assert.equal(calculator.greet("Disha"), "Hello, Disha");
+  });
+});
+
+test("matches every valid fixture to its expected output without modifying sources", async () => {
+  await withTemporaryOutput(async directory => {
+    for (const fixture of ["ambiguous", "calculator", "data"]) {
+      const inputFile = path.join(legacyDirectory, `${fixture}.js`);
+      const expectedOutputFile = path.join(
+        projectRoot,
+        "fixtures",
+        "migrated",
+        `${fixture}.ts`,
+      );
+      const outputFile = path.join(directory, `${fixture}.ts`);
+      const originalSource = await fs.readFile(inputFile, "utf8");
+      const expectedOutput = await fs.readFile(expectedOutputFile, "utf8");
+
+      const report = await migrateFile({
+        inputFile,
+        outputFile,
+        projectRoot,
+      });
+
+      assert.notEqual(report.status, "failed", fixture);
+      assert.deepEqual(report.errors, [], fixture);
+      assert.equal(await fs.readFile(outputFile, "utf8"), expectedOutput, fixture);
+      assert.equal(await fs.readFile(inputFile, "utf8"), originalSource, fixture);
+    }
   });
 });
 
@@ -355,6 +384,60 @@ test("rejects migration paths outside the configured project root", async () => 
     });
   } finally {
     await fs.rm(outsideDirectory, { recursive: true, force: true });
+  }
+});
+
+test("rolls back each committed migration cleanly when verification fails", async () => {
+  for (const fixture of ["ambiguous", "calculator", "data"]) {
+    await withTemporaryOutput(async directory => {
+      const repository = path.join(directory, "repository");
+      await fs.mkdir(repository);
+      const originalSource = await fs.readFile(
+        path.join(legacyDirectory, `${fixture}.js`),
+        "utf8",
+      );
+      const inputFile = path.join(repository, `${fixture}.js`);
+      const outputFile = path.join(repository, `${fixture}.ts`);
+      const reportFile = path.join(repository, "migration-report.json");
+      const runGit = (...args: string[]): string =>
+        execFileSync("git", args, {
+          cwd: repository,
+          encoding: "utf8",
+          stdio: "pipe",
+        }).trim();
+
+      await fs.writeFile(inputFile, originalSource, "utf8");
+      runGit("init", "-b", "main");
+      runGit("config", "user.name", "Migration CI Test");
+      runGit("config", "user.email", "migration-ci-test@example.invalid");
+      runGit("add", `${fixture}.js`);
+      runGit("commit", "-m", "baseline");
+
+      const report = await migrateFile({
+        inputFile,
+        outputFile,
+        projectRoot: repository,
+        reportFile,
+      });
+      assert.notEqual(report.status, "failed", fixture);
+      runGit("add", `${fixture}.ts`, "migration-report.json");
+      runGit("commit", "-m", `migrate ${fixture}`);
+
+      assert.throws(
+        () =>
+          execFileSync(process.execPath, ["-e", "process.exit(1)"], {
+            cwd: repository,
+            stdio: "pipe",
+          }),
+        `${fixture}: simulated verification should fail`,
+      );
+
+      runGit("revert", "--no-edit", "HEAD");
+      assert.equal(runGit("status", "--porcelain"), "", fixture);
+      assert.equal(await fs.readFile(inputFile, "utf8"), originalSource, fixture);
+      await assert.rejects(fs.stat(outputFile), { code: "ENOENT" });
+      await assert.rejects(fs.stat(reportFile), { code: "ENOENT" });
+    });
   }
 });
 

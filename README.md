@@ -53,18 +53,34 @@ The fixture batch writes successful or review-required TypeScript outputs beneat
 
 ## Test and build
 
-Run the engine tests and backend TypeScript check:
+Run the TypeScript check and migration tests first, then regenerate the checked-in
+fixture outputs and reports:
 
 ```powershell
 npm test
-npx tsc --noEmit
 ```
 
-Type-check and build the dashboard:
+The tests compare each valid fixture migration to its checked-in expected output,
+confirm the original inputs remain unchanged, and verify a clean Git revert when
+post-migration verification fails. The malformed fixture also verifies that a
+failed migration preserves any pre-existing output.
+
+Run the migration success-rate quality gate and type-check/build the dashboard:
 
 ```powershell
+npm run quality:gate
 npm run build:dashboard
 ```
+
+The quality gate measures successful migrations across the three valid fixtures;
+the intentionally malformed fixture is excluded. It requires a 100% success rate.
+GitHub Actions records a per-run summary and a 90-day JSON artifact to make the
+rate reviewable across workflow runs.
+
+The GitHub Actions workflow runs on pull requests and pushes to `main`. It runs
+`npm ci`, the migration tests and fixture regeneration, the success-rate gate,
+and the dashboard production build. It does not claim or run AWS integration
+tests; no AWS services are invoked by this local CI workflow.
 
 To preview the production build locally, keep the backend running and start a second terminal:
 
