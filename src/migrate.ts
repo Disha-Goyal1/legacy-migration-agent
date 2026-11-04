@@ -506,7 +506,10 @@ export async function migrateFile(
         target: ScriptTarget.ES2020,
         strict: true,
         types: ["node"],
-        typeRoots: [path.resolve(__dirname, "..", "node_modules", "@types")],
+        typeRoots: [
+          path.resolve(__dirname, "..", "node_modules", "@types"),
+          path.resolve(__dirname, "node_modules", "@types"),
+        ],
       },
     });
     const sourceFile = project.createSourceFile(

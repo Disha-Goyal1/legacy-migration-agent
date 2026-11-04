@@ -3,6 +3,16 @@ import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { migrateFile, type MigrationReport } from "./migrate";
+import {
+  cloudApiConfigured,
+  getCloudRun,
+  listCloudReviews,
+  listCloudRuns,
+  migrationHistory,
+  startCloudRun,
+  submitCloudReview,
+} from "./aws/cloud-api";
+import { prepareDependencyArchive } from "./dependency-preparation";
 
 const MAX_REQUEST_BYTES = 1_000_000;
 
@@ -31,7 +41,10 @@ function sendJson(
   response.end(JSON.stringify(value));
 }
 
-async function readRequestBody(request: IncomingMessage): Promise<string> {
+async function readRequestBody(
+  request: IncomingMessage,
+  maxBytes = MAX_REQUEST_BYTES,
+): Promise<string> {
   return new Promise((resolve, reject) => {
     const chunks: Buffer[] = [];
     let byteLength = 0;
@@ -40,9 +53,10 @@ async function readRequestBody(request: IncomingMessage): Promise<string> {
     request.on("data", (chunk: Buffer | string) => {
       const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
       byteLength += buffer.length;
-      if (byteLength > MAX_REQUEST_BYTES) {
+      if (byteLength > maxBytes) {
         tooLarge = true;
         chunks.length = 0;
+        request.resume();
         return;
       }
       if (!tooLarge) {
@@ -52,7 +66,13 @@ async function readRequestBody(request: IncomingMessage): Promise<string> {
 
     request.on("end", () => {
       if (tooLarge) {
-        reject(new Error("Request body exceeds the 1 MB limit."));
+        reject(
+          new Error(
+            maxBytes === MAX_REQUEST_BYTES
+              ? "Request body exceeds the 1 MB limit."
+              : "Request body exceeds the cloud archive upload limit.",
+          ),
+        );
         return;
       }
       resolve(Buffer.concat(chunks).toString("utf8"));
@@ -174,13 +194,146 @@ async function migrateUploadedSource(
 
 export function createMigrationServer(
   rootDirectory = path.resolve(__dirname, ".."),
+  dependencies: {
+    cloudApiConfigured?: typeof cloudApiConfigured;
+    startCloudRun?: typeof startCloudRun;
+    prepareArchive?: typeof prepareDependencyArchive;
+  } = {},
 ): Server {
+  const isCloudApiConfigured =
+    dependencies.cloudApiConfigured ?? cloudApiConfigured;
+  const beginCloudRun = dependencies.startCloudRun ?? startCloudRun;
+  const prepareArchive =
+    dependencies.prepareArchive ?? prepareDependencyArchive;
+
   return createServer((request, response) => {
     void (async () => {
       const requestUrl = new URL(
         request.url ?? "/",
         "http://127.0.0.1",
       );
+
+      if (request.method === "GET" && requestUrl.pathname === "/api/cloud/status") {
+        sendJson(response, 200, { configured: isCloudApiConfigured() });
+        return;
+      }
+
+      if (
+        request.method === "POST" &&
+        requestUrl.pathname === "/api/cloud/runs"
+      ) {
+        if (!isCloudApiConfigured()) {
+          sendJson(response, 503, {
+            error: "Cloud migration is not configured for this local workspace.",
+          });
+          return;
+        }
+        const payload: unknown = JSON.parse(
+          await readRequestBody(request, 50 * 1024 * 1024),
+        );
+        if (typeof payload !== "object" || payload === null) {
+          throw new TypeError("Cloud migration request must be a JSON object.");
+        }
+        const record = payload as Record<string, unknown>;
+        if (typeof record.archiveBase64 !== "string") {
+          throw new TypeError("Cloud migration request needs archiveBase64.");
+        }
+        const preparedArchive = await prepareArchive(
+          Buffer.from(record.archiveBase64, "base64"),
+        );
+        sendJson(
+          response,
+          202,
+          await beginCloudRun({
+            archiveBase64: preparedArchive.toString("base64"),
+            repository: record.repository,
+          }),
+        );
+        return;
+      }
+
+      if (
+        request.method === "GET" &&
+        requestUrl.pathname === "/api/cloud/runs"
+      ) {
+        if (!isCloudApiConfigured()) {
+          sendJson(response, 503, { error: "Cloud migration is not configured." });
+          return;
+        }
+        const limit = Number(requestUrl.searchParams.get("limit") ?? 30);
+        sendJson(response, 200, { runs: await listCloudRuns(limit) });
+        return;
+      }
+
+      const cloudRunMatch = requestUrl.pathname.match(
+        /^\/api\/cloud\/runs\/([0-9a-f-]{36})$/i,
+      );
+      if (request.method === "GET" && cloudRunMatch) {
+        if (!isCloudApiConfigured()) {
+          sendJson(response, 503, { error: "Cloud migration is not configured." });
+          return;
+        }
+        const run = await getCloudRun(cloudRunMatch[1] ?? "");
+        sendJson(response, run ? 200 : 404, run ?? { error: "Run not found." });
+        return;
+      }
+
+      if (
+        request.method === "GET" &&
+        requestUrl.pathname === "/api/cloud/reviews"
+      ) {
+        if (!isCloudApiConfigured()) {
+          sendJson(response, 503, { error: "Cloud migration is not configured." });
+          return;
+        }
+        sendJson(response, 200, { reviews: await listCloudReviews() });
+        return;
+      }
+
+      if (
+        request.method === "POST" &&
+        requestUrl.pathname === "/api/cloud/reviews/decision"
+      ) {
+        if (!isCloudApiConfigured()) {
+          sendJson(response, 503, { error: "Cloud migration is not configured." });
+          return;
+        }
+        const payload: unknown = JSON.parse(await readRequestBody(request));
+        if (typeof payload !== "object" || payload === null) {
+          throw new TypeError("Review decision must be a JSON object.");
+        }
+        const value = payload as Record<string, unknown>;
+        if (
+          typeof value.runId !== "string" ||
+          typeof value.filePath !== "string" ||
+          (value.decision !== "approved" && value.decision !== "rejected")
+        ) {
+          throw new TypeError("Review decision fields are invalid.");
+        }
+        await submitCloudReview({
+          runId: value.runId,
+          filePath: value.filePath,
+          decision: value.decision,
+        });
+        sendJson(response, 200, { accepted: true });
+        return;
+      }
+
+      if (
+        request.method === "GET" &&
+        requestUrl.pathname === "/api/cloud/history"
+      ) {
+        if (!cloudApiConfigured()) {
+          sendJson(response, 503, { error: "Cloud metrics are not configured." });
+          return;
+        }
+        const days = Number(requestUrl.searchParams.get("days") ?? 90);
+        sendJson(response, 200, {
+          days,
+          points: await migrationHistory(days),
+        });
+        return;
+      }
 
       if (request.method === "GET" && requestUrl.pathname === "/api/summary") {
         sendJson(response, 200, await loadSummary(rootDirectory));

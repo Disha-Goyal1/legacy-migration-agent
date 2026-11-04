@@ -214,6 +214,14 @@ test("reports invalid source and preserves an existing output", async () => {
 
     assert.equal(report.status, "failed");
     assert.ok(report.errors.length > 0);
+    assert.ok(
+      report.errors.some(error => error.includes("TS2304")),
+      "invalid JavaScript fixture should fail with an actionable TypeScript semantic diagnostic",
+    );
+    assert.ok(
+      report.errors.every(error => !error.includes("TS2391")),
+      "diagnostics should not be obscured by the malformed function declaration",
+    );
     assert.equal(await fs.readFile(outputFile, "utf8"), existingOutput);
     const persistedReport = JSON.parse(await fs.readFile(reportFile, "utf8"));
     assert.equal(persistedReport.status, "failed");
@@ -270,7 +278,11 @@ test("persisted migration report covers every fixture with complete results", as
   assert.ok(invalidReport, "missing report for invalid.js");
   assert.equal(invalidReport.status, "failed");
   assert.ok(invalidReport.errors.length > 0);
-  assert.deepEqual(invalidReport.warnings, []);
+  assert.ok(
+    invalidReport.warnings.some(warning =>
+      warning.includes('Function "invalid" has an uncertain any return type.'),
+    ),
+  );
   await assert.rejects(
     fs.stat(path.join(projectRoot, "fixtures", "migrated", "invalid.ts")),
     { code: "ENOENT" },
